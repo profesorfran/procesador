@@ -40,7 +40,7 @@
     function enviarAGoogleScript() {
       const texto = document.getElementById("editor").value;
 
-      fetch("https://script.google.com/macros/s/TU_SCRIPT_URL/exec", {
+      fetch("https://script.google.com/macros/s/AKfycbxXGOkSX6oum9fP08xMgUzJbeEK5na0sfsLXzxxJz-ZgvGtQBayR_vosnBUx6gPNTs/exec", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "texto=" + encodeURIComponent(texto)
