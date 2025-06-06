@@ -1,0 +1,111 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Procesador de texto seguro</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      padding: 20px;
+    }
+    input, textarea, button {
+      width: 100%;
+      font-size: 16px;
+      margin-top: 10px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+    textarea {
+      height: 600px;
+    }
+    #confirmacion {
+      margin-top: 10px;
+      color: green;
+      font-weight: bold;
+    }
+    #contador {
+      margin-top: 5px;
+      font-size: 14px;
+      color: #555;
+      text-align: right;
+    }
+    .autor {
+      font-size: 14px;
+      color: #555;
+      font-style: italic;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body spellcheck="false" autocorrect="off" autocomplete="off" autocapitalize="off">
+  <h2>Procesador de texto seguro</h2>
+  <div class="autor">Desarrollado por Francisco David Sánchez Valencia (profesor de Lengua y Literatura)</div>
+
+  <input type="text" id="nombre" placeholder="Nombre y apellidos" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <input type="text" id="curso" placeholder="Curso (Ej: 4ºA)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <textarea id="editor" spellcheck="false" placeholder="Escribe aquí..." 
+            onpaste="return false;" oncopy="return false;" oncut="return false;" oncontextmenu="return false;"></textarea>
+  <div id="contador">0 palabras</div>
+  <button onclick="enviarTexto()">Enviar</button>
+  <div id="confirmacion"></div>
+
+  <script>
+    const editor = document.getElementById("editor");
+    const contador = document.getElementById("contador");
+    const confirmacion = document.getElementById("confirmacion");
+
+    window.addEventListener("blur", () => {
+      editor.value = "";
+    });
+
+    editor.addEventListener("input", () => {
+      const palabras = editor.value.trim().split(/\s+/).filter(p => p.length > 0);
+      contador.textContent = palabras.length + " palabras";
+    });
+
+    editor.addEventListener("keydown", function(e) {
+      if ((e.ctrlKey || e.metaKey) && ['v', 'c', 'x', 'a'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+      }
+    });
+
+    function enviarTexto() {
+      const nombre = document.getElementById("nombre").value.trim();
+      const curso = document.getElementById("curso").value.trim();
+      let texto = editor.value.trim();
+
+      if (!nombre || !curso || texto.split(/\s+/).filter(p => p.length > 0).length < 5) {
+        confirmacion.textContent = "❌ Por favor, completa nombre, curso y un texto de al menos 5 palabras.";
+        confirmacion.style.color = "red";
+        return;
+      }
+
+      const fechaHora = new Date().toISOString();
+      const titulo = encodeURIComponent(`${curso} - ${nombre} - ${fechaHora}`);
+      texto = `Nombre: ${nombre}\nCurso: ${curso}\n\n${texto}`;
+
+      const body = "texto=" + encodeURIComponent(texto);
+
+      fetch("https://script.google.com/macros/s/AKfycby_WkCJKeQcFITB08Zi9Px-mkyCL4QYbuq0AVKUl0MofStlnRKujYMeyh2cxKb7jnGwiQ/exec", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body
+      })
+      .then(res => res.text())
+      .then(data => {
+        confirmacion.textContent = `✅ Texto enviado correctamente a las ${new Date().toLocaleTimeString()}.`;
+        confirmacion.style.color = "green";
+        editor.value = "";
+        contador.textContent = "0 palabras";
+      })
+      .catch(err => {
+        confirmacion.textContent = "❌ Error al enviar el texto.";
+        confirmacion.style.color = "red";
+      });
+    }
+  </script>
+</body>
+</html>
