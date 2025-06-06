@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Procesador de Texto Seguro</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 10px;
+      background-color: #f4f4f4;
+    }
+    textarea {
+      width: 100%;
+      min-height: 300px;
+      font-size: 16px;
+      padding: 10px;
+      box-sizing: border-box;
+      resize: vertical;
+      overflow-y: auto;
+      user-select: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      -moz-user-select: none;
+      touch-action: manipulation;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h1>Procesador de Texto</h1>
+  <textarea id="editor" spellcheck="false" placeholder="Escribe aquí..." 
+            onpaste="return false;" oncopy="return false;" 
+            oncut="return false;" oncontextmenu="return false;"></textarea><br>
+  <button onclick="enviarTexto()">Enviar</button>
+
+  <script>
+    // Borrar texto si se cambia de pestaña
+    window.addEventListener("blur", () => {
+      document.getElementById("editor").value = "";
+    });
+
+    // Bloqueo de teclas de copiar, pegar, cortar, seleccionar
+    document.getElementById("editor").addEventListener("keydown", function(e) {
+      if ((e.ctrlKey || e.metaKey) && ['v', 'c', 'x', 'a'].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+      }
+    });
+
+    // Enviar texto al Apps Script
+    function enviarTexto() {
+      const texto = document.getElementById("editor").value;
+
+      fetch("https://script.google.com/macros/s/AKfycbxXGOkSX6oum9fP08xMgUzJbeEK5na0sfsLXzxxJz-ZgvGtQBayR_vosnBUx6gPNTs/exec", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "texto=" + encodeURIComponent(texto)
+      })
+      .then(() => {
+        alert("Texto enviado y guardado en tu carpeta de Drive.");
+        document.getElementById("editor").value = "";
+      })
+      .catch(err => {
+        alert("Error al enviar el texto: " + err);
+      });
+    }
+  </script>
+</body>
+</html>
