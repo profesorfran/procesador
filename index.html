@@ -1,0 +1,105 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Procesador de texto seguro</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2em;
+      max-width: 600px;
+      margin: auto;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2em;
+    }
+    h2 {
+      text-align: center;
+      font-size: 1em;
+      font-weight: normal;
+      color: #555;
+    }
+    label {
+      display: block;
+      margin-top: 1em;
+    }
+    textarea, input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 0.5em;
+      font-size: 1em;
+    }
+    button {
+      margin-top: 1em;
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      width: 100%;
+      font-size: 1em;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .mensaje {
+      margin-top: 1em;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Procesador de texto seguro</h1>
+  <h2>Desarrollado por Francisco Sánchez Valencia (Profesor de Lengua y Literatura)</h2>
+  <form id="formulario">
+    <label for="nombre">Nombre y apellidos:</label>
+    <input type="text" id="nombre" name="nombre" required />
+
+    <label for="curso">Curso:</label>
+    <input type="text" id="curso" name="curso" required />
+
+    <label for="texto">Escribe tu texto:</label>
+    <textarea id="texto" name="texto" rows="10"
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      required></textarea>
+
+    <button type="submit">Enviar</button>
+    <div class="mensaje" id="mensaje"></div>
+  </form>
+
+  <script>
+    const url = "https://script.google.com/macros/s/AKfycbwDJY2TP67Q2WAPCZDbbDNa-JKRgZMmAUnuwDLGyXPJy1DzOdRBmfkkvAzE8BBAMNKR4g/exec";
+    document.getElementById("formulario").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const nombre = encodeURIComponent(document.getElementById("nombre").value);
+      const curso = encodeURIComponent(document.getElementById("curso").value);
+      const texto = encodeURIComponent(document.getElementById("texto").value);
+
+      const mensaje = document.getElementById("mensaje");
+      mensaje.style.color = "black";
+      mensaje.textContent = "Enviando...";
+
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+          },
+          body: `nombre=${nombre}&curso=${curso}&texto=${texto}`
+        });
+
+        const resultado = await response.text();
+        mensaje.style.color = "green";
+        mensaje.textContent = resultado;
+      } catch (error) {
+        mensaje.style.color = "red";
+        mensaje.textContent = "Error al conectar con el servidor.";
+      }
+    });
+  </script>
+</body>
+</html>
