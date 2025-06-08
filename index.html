@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Procesador de texto seguro</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      padding: 20px;
+      text-align: center;
+    }
+    .form-container {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      max-width: 500px;
+      margin: auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #007bff;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .mensaje {
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    small {
+      display: block;
+      margin-top: 10px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>Procesador de texto seguro</h2>
+    <p><strong>Desarrollado por Francisco Sánchez Valencia</strong><br>(Profesor de Lengua y Literatura)</p>
+    <form id="textoForm">
+      <label for="nombre">Nombre y apellidos:</label>
+      <input type="text" id="nombre" name="nombre" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+
+      <label for="curso">Curso:</label>
+      <input type="text" id="curso" name="curso" required/>
+
+      <label for="texto">Escribe tu texto:</label>
+      <textarea id="texto" name="texto" rows="6" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+
+      <button type="submit">Enviar</button>
+    </form>
+    <div class="mensaje" id="mensaje"></div>
+  </div>
+
+  <script>
+    document.getElementById("textoForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const mensaje = document.getElementById("mensaje");
+      mensaje.textContent = "Enviando...";
+
+      const data = {
+        nombre: document.getElementById("nombre").value,
+        curso: document.getElementById("curso").value,
+        texto: document.getElementById("texto").value
+      };
+
+      fetch("https://script.google.com/macros/s/AKfycbwDJY2TP67Q2WAPCZDbbDNa-JKRgZMmAUnuwDLGyXPJy1DzOdRBmfkkvAzE8BBAMNKR4g/exec", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      })
+      .then(response => response.text())
+      .then(result => {
+        mensaje.textContent = "Texto enviado correctamente.";
+        document.getElementById("textoForm").reset();
+      })
+      .catch(error => {
+        mensaje.textContent = "Error al enviar: " + error;
+      });
+    });
+  </script>
+</body>
+</html>
