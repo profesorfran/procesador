@@ -1,0 +1,86 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Procesador de texto seguro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+    }
+    input, textarea {
+      width: 100%;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+  </style>
+  <script>
+    let initialFocus = true;
+    window.onblur = () => {
+      if (!initialFocus) {
+        document.getElementById('texto').value = '';
+      }
+      initialFocus = false;
+    };
+  </script>
+</head>
+<body oncopy="return false" oncut="return false" onpaste="return false">
+  <h1>Procesador de texto seguro</h1>
+  <form id="formulario">
+    <label for="nombre">Nombre:</label>
+    <input type="text" id="nombre" name="nombre" required>
+
+    <label for="curso">Curso:</label>
+    <input type="text" id="curso" name="curso" required>
+
+    <label for="texto">Texto:</label>
+    <textarea id="texto" name="texto" rows="10" required autocorrect="off" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+
+    <p id="contador">Palabras: 0</p>
+
+    <button type="submit">Enviar</button>
+  </form>
+
+  <script>
+    const url = "https://script.google.com/macros/s/AKfycbwDJY2TP67Q2WAPCZDbbDNa-JKRgZMmAUnuwDLGyXPJy1DzOdRBmfkkvAzE8BBAMNKR4g/exec";
+
+    document.getElementById("formulario").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const nombre = document.getElementById("nombre").value;
+      const curso = document.getElementById("curso").value;
+      const texto = document.getElementById("texto").value;
+
+      const datos = new URLSearchParams();
+      datos.append("nombre", nombre);
+      datos.append("curso", curso);
+      datos.append("texto", texto);
+
+      fetch(url, {
+        method: "POST",
+        body: datos,
+      })
+      .then(response => response.text())
+      .then(data => {
+        alert("Texto enviado correctamente");
+        document.getElementById("formulario").reset();
+        document.getElementById("contador").textContent = "Palabras: 0";
+      })
+      .catch(error => {
+        alert("Error al enviar el texto");
+      });
+    });
+
+    document.getElementById("texto").addEventListener("input", function() {
+      const texto = this.value.trim();
+      const palabras = texto === "" ? 0 : texto.split(/\s+/).length;
+      document.getElementById("contador").textContent = "Palabras: " + palabras;
+    });
+  </script>
+</body>
+</html>
