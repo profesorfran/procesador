@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Procesador de texto seguro</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 20px; background:#f4f4f4;
+    }
+    h1 {text-align:center; margin:0;}
+    h2 {text-align:center; font-size:1em; font-weight:normal; margin:4px 0 20px;}
+    input, textarea, button {
+      display:block; width:100%; max-width:800px; margin:0 auto 15px;
+      padding:10px; font-size:1em; box-sizing:border-box;
+    }
+    textarea {
+      height:300px; resize:none; spellcheck:false;
+      autocorrect:off; autocomplete:off; autocapitalize:off;
+    }
+    #count {text-align:right; max-width:800px; margin:-10px auto 15px; font-size:.9em;}
+    button {
+      background:#28a745; color:#fff; border:none; cursor:pointer;
+    }
+    button:hover {background:#218838;}
+  </style>
+</head>
+<body oncopy="return false" onpaste="return false" oncut="return false">
+  <h1>Procesador de texto seguro</h1>
+  <h2>Desarrollado por Francisco David Sánchez Valencia (profesor de Lengua y Literatura)</h2>
+
+  <input id="nombre" placeholder="Nombre y apellidos" autocomplete="off">
+  <input id="curso"  placeholder="Curso (p. ej. 3ºA)" autocomplete="off">
+  <textarea id="texto" placeholder="Escribe aquí…"></textarea>
+  <div id="count">0 palabras</div>
+  <button onclick="enviar()">Enviar</button>
+
+<script>
+const texto = document.getElementById('texto');
+const count = document.getElementById('count');
+
+texto.addEventListener('input', () => {
+  const n = texto.value.trim().split(/\s+/).filter(Boolean).length;
+  count.textContent = n + ' palabra' + (n!=1?'s':'');
+});
+
+function enviar() {
+  const nombre = document.getElementById('nombre').value.trim();
+  const curso  = document.getElementById('curso').value.trim();
+  const txt    = texto.value.trim();
+
+  if(!nombre || !curso || !txt) {
+    alert('Completa todos los campos.'); return;
+  }
+
+  const body = new URLSearchParams({
+    nombre, curso, texto: txt
+  });
+
+  fetch("https://script.google.com/macros/s/AKfycby71OTLEjL-wX1yLG8AUprhfQk37Yd2fwCl-sHIGfmHX9yGStXmFCf-igaarfCrDMlkhQ/exec", {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body
+  }).then(()=>{
+      alert('Texto enviado ✅');
+      document.getElementById('nombre').value='';
+      document.getElementById('curso').value='';
+      texto.value=''; count.textContent='0 palabras';
+  }).catch(err=>alert('Error: '+err));
+}
+</script>
+</body>
+</html>
