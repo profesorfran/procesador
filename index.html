@@ -1,0 +1,105 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Procesador de texto seguro</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #f4f4f4;
+    }
+    h1 {
+      color: #333;
+    }
+    textarea {
+      width: 100%;
+      height: 300px;
+      font-size: 16px;
+      padding: 10px;
+      resize: none;
+    }
+    input[type="text"] {
+      width: 50%;
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    #contador {
+      margin-top: 10px;
+    }
+  </style>
+  <script>
+    let textoTemporal = "";
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        document.getElementById("texto").value = "";
+      }
+    });
+
+    function contarPalabras(texto) {
+      return texto.trim().split(/\s+/).filter(p => p.length > 0).length;
+    }
+
+    function actualizarContador() {
+      const texto = document.getElementById("texto").value;
+      const palabras = contarPalabras(texto);
+      document.getElementById("contador").innerText = "Palabras: " + palabras;
+    }
+
+    function enviarTexto() {
+      const nombre = document.getElementById("nombre").value.trim();
+      const curso = document.getElementById("curso").value.trim();
+      const texto = document.getElementById("texto").value.trim();
+
+      if (!nombre || !curso || !texto) {
+        alert("Por favor, completa todos los campos.");
+        return;
+      }
+
+      fetch("https://script.google.com/macros/s/AKfycbx2zUvhrHPq_pfXtv7YZ7yZ24yNKXqBc3Ykpl_KlARckOI5CmH6QxLeLC9BW_-uN38n_w/exec", {
+        method: "POST",
+        body: new URLSearchParams({
+          nombre: nombre,
+          curso: curso,
+          texto: texto
+        }),
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        }
+      })
+      .then(response => response.text())
+      .then(data => {
+        alert("Texto enviado correctamente.");
+        document.getElementById("texto").value = "";
+        document.getElementById("contador").innerText = "";
+      })
+      .catch(error => {
+        alert("Error al enviar el texto.");
+      });
+    }
+  </script>
+</head>
+<body>
+  <h1>Procesador de texto seguro</h1>
+  <p>Desarrollado por Francisco David Sánchez Valencia (profesor de Lengua y Literatura)</p>
+  <input type="text" id="nombre" placeholder="Nombre y apellidos" autocomplete="off">
+  <input type="text" id="curso" placeholder="Curso (por ejemplo, 4ºA)" autocomplete="off">
+  <textarea id="texto" spellcheck="false"
+            onpaste="return false"
+            oncopy="return false"
+            oncut="return false"
+            oninput="actualizarContador()"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"></textarea>
+  <div id="contador">Palabras: 0</div>
+  <button onclick="enviarTexto()">Enviar</button>
+</body>
+</html>
