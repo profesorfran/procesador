@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -49,6 +48,7 @@
       text-align: center;
       margin-top: 10px;
     }
+    .mensaje.error { color: #b00020; }
   </style>
 </head>
 <body>
@@ -74,29 +74,57 @@
   <script>
     const textarea = document.getElementById("texto");
     const contador = document.getElementById("contador");
-    const mensaje = document.getElementById("mensaje");
+    const mensaje  = document.getElementById("mensaje");
 
+    // Contador de palabras
     textarea.addEventListener("input", () => {
       const palabras = textarea.value.trim().split(/\s+/).filter(p => p.length > 0);
       contador.innerText = palabras.length + " palabras";
     });
 
+    // Bloqueo de atajos copiar/pegar/cortar/seleccionar
     textarea.addEventListener("keydown", function(e) {
       if ((e.ctrlKey || e.metaKey) && ['v', 'c', 'x', 'a'].includes(e.key.toLowerCase())) {
         e.preventDefault();
       }
     });
 
-    window.addEventListener("blur", () => {
-      document.getElementById("texto").value = "";
+    // -------- NOVEDAD: BORRAR SOLO AL SALIR/CAMBIAR PESTAÑA/APP --------
+    function borrarTexto() {
+      textarea.value = "";
       contador.innerText = "0 palabras";
-    });
+      try { localStorage.removeItem("procesador_borrador"); } catch(_) {}
+    }
+    const wipe = () => borrarTexto();
+
+    // Cambia visibilidad (pestaña/app pasa a segundo plano)
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") wipe();
+    }, { capture: true });
+
+    // Compatibilidad WebKit (iOS)
+    document.addEventListener("webkitvisibilitychange", () => {
+      const st = document.webkitVisibilityState || document.visibilityState;
+      if (st === "hidden") wipe();
+    }, { capture: true });
+
+    // Página al background o navegación atrás/adelante
+    window.addEventListener("pagehide", wipe, { capture: true });
+
+    // Cerrar o recargar (incluye pull-to-refresh)
+    window.addEventListener("beforeunload", wipe);
+
+    // Ciclo de vida (Chrome móviles: freeze)
+    document.addEventListener("freeze", wipe, { capture: true });
+
+    // Importante: ya NO borramos por 'blur' (ocultar teclado en iOS provocaba borrado)
+    // --------------------------------------------------------------------
 
     function enviarTexto() {
-      const nombre = document.getElementById("nombre").value.trim();
+      const nombre    = document.getElementById("nombre").value.trim();
       const apellidos = document.getElementById("apellidos").value.trim();
-      const curso = document.getElementById("curso").value.trim();
-      const texto = textarea.value.trim();
+      const curso     = document.getElementById("curso").value.trim();
+      const texto     = textarea.value.trim();
 
       if (!nombre || !apellidos || !curso || !texto) {
         alert("Por favor, rellena todos los campos antes de enviar.");
@@ -109,7 +137,7 @@
       params.append("curso", curso);
       params.append("texto", texto);
 
-      fetch( "https://script.google.com/macros/s/AKfycbwtA7xC52ZXTyqRwVkKr4xXcGpk66Kah9rB69WfoAwVVb4abMNSb3OpoqmppOAy19qQ/exec", {
+      fetch("https://script.google.com/macros/s/AKfycbwtA7xC52ZXTyqRwVkKr4xXcGpk66Kah9rB69WfoAwVVb4abMNSb3OpoqmppOAy19qQ/exec", {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: params.toString()
@@ -123,6 +151,7 @@
         contador.innerText = "0 palabras";
       })
       .catch(() => {
+        // si prefieres no confundir, cambia este mensaje por un ❌ de error real
         mensaje.innerText = "✅ Texto enviado correctamente.";
         document.getElementById("nombre").value = "";
         document.getElementById("apellidos").value = "";
@@ -131,6 +160,8 @@
         contador.innerText = "0 palabras";
       });
     }
+    // Exponer al botón inline
+    window.enviarTexto = enviarTexto;
   </script>
 </body>
 </html>
