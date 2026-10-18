@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-visual" />
+  <title>Procesador de Texto</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+    input, textarea {
+      width: 100%;
+      font-size: 16px;
+      padding: 10px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    textarea {
+      height: 220px;
+      resize: vertical;
+      overflow-y: auto;
+      user-select: none;
+      -webkit-user-select: none;
+      -ms-user-select: none;
+      -moz-user-select: none;
+    }
+    textarea:disabled { background: #e6e6e6; }
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+    }
+    button:disabled { opacity: 0.6; }
+    #contador {
+      text-align: right;
+      font-size: 14px;
+      color: #333;
+    }
+    .autor {
+      font-size: 14px;
+      text-align: center;
+      color: #666;
+      margin-bottom: 20px;
+    }
+    .mensaje {
+      font-size: 16px;
+      color: green;
+      text-align: center;
+      margin-top: 10px;
+    }
+    .mensaje.error { color: #b00020; font-weight: bold; }
+    .mensaje.aviso { color: #7a5a00; }
+    #aviso-ventana {
+      display: none;
+      background: #fff3cd;
+      border: 1px solid #e0b100;
+      color: #5c4400;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      text-align: center;
+      font-weight: bold;
+    }
+    #aviso-corrector {
+      min-height: 18px;
+      font-size: 14px;
+      color: #b00020;
+      text-align: right;
+      margin-bottom: 6px;
+    }
+    #panel-prueba {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      max-height: 40vh;
+      overflow-y: auto;
+      background: #1e1e1e;
+      color: #d7f7d7;
+      font: 12px/1.4 monospace;
+      padding: 8px 12px;
+      z-index: 10;
+    }
+    #panel-prueba b { color: #ffd479; }
+  </style>
+</head>
+<body>
+  <h2>Procesador de Texto</h2>
+  <div class="autor">Desarrollado por Francisco David Sánchez Valencia</div>
+  <p style="color: red; text-align: center; font-weight: bold; margin-top: 10px;">
+    ¡ATENCIÓN! No se permite copiar ni pegar. Si cambias de pestaña, sales de la aplicación, usas otra ventana o divides la pantalla, el texto se borrará automáticamente.
+  </p>
+
+  <div id="aviso-ventana">
+    Para escribir, el procesador tiene que ocupar toda la pantalla.<br>
+    Maximiza la ventana del navegador o quita la pantalla dividida.
+  </div>
+
+  <input type="text" id="nombre" placeholder="Nombre" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+         onpaste="return false;" oncopy="return false;" oncut="return false;" oncontextmenu="return false;">
+  <input type="text" id="apellidos" placeholder="Apellidos" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+         onpaste="return false;" oncopy="return false;" oncut="return false;" oncontextmenu="return false;">
+  <input type="text" id="curso" placeholder="Curso" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+         onpaste="return false;" oncopy="return false;" oncut="return false;" oncontextmenu="return false;">
+  <textarea id="texto" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+            writingsuggestions="false" translate="no"
+            data-gramm="false" data-gramm_editor="false" data-enable-grammarly="false" data-lt-active="false"
+            onpaste="return false;" oncopy="return false;" oncut="return false;" oncontextmenu="return false;"
+            ondrop="return false;" ondragover="return false;"
+            placeholder="Escribe tu texto aquí…"></textarea>
+  <div id="contador">0 palabras</div>
+  <div id="aviso-corrector" aria-live="polite"></div>
+  <button id="enviar" type="button">Enviar</button>
+  <div class="mensaje" id="mensaje"></div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    // ================= AJUSTES (se pueden cambiar) =================
+    const AJUSTES = {
+      URL_SCRIPT: "https://script.google.com/macros/s/AKfycbwtA7xC52ZXTyqRwVkKr4xXcGpk66Kah9rB69WfoAwVVb4abMNSb3OpoqmppOAy19qQ/exec",
+
+      // Si la página deja de verse y el alumno llevaba al menos este tiempo
+      // sin tocar nada, se entiende que la pantalla se apagó o saltó el
+      // salvapantallas, y NO se borra.
+      INACTIVO_MOVIL_MS: 12000,             // móvil/tableta sin "pantalla siempre encendida"
+      INACTIVO_MOVIL_PANTALLA_FIJA_MS: 90000,
+      INACTIVO_ORDENADOR_MS: 50000,
+      INACTIVO_ORDENADOR_PANTALLA_FIJA_MS: 120000,
+
+      // Ordenador: segundos que puede estar activa otra ventana antes de borrar
+      GRACIA_OTRA_VENTANA_MS: 1000,
+      // Tiempo que puede estar la ventana reducida/dividida antes de borrar
+      GRACIA_VENTANA_REDUCIDA_MS: 1500,
+
+      // Proporción mínima de la pantalla que debe ocupar el procesador
+      ANCHO_MINIMO: 0.9,
+      ALTO_MINIMO_ORDENADOR: 0.85,
+      ALTO_MINIMO_MOVIL: 0.6,
+
+      ESPERA_MAXIMA_ENVIO_MS: 25000,
+
+      // Deshace cualquier cambio en el texto que no sea teclear letra a letra:
+      // autocorrector, sugerencias, corrector ortográfico del teclado, escritura
+      // deslizando el dedo, dictado por voz, portapapeles del teclado…
+      BLOQUEAR_AYUDAS_TECLADO: true
+    };
+    // ===============================================================
+
+    const MODO_PRUEBA = new URLSearchParams(location.search).has("prueba");
+    const ES_TACTIL = window.matchMedia("(pointer: coarse)").matches;
+
+    const $ = (id) => document.getElementById(id);
+    const nombre = $("nombre"), apellidos = $("apellidos"), curso = $("curso");
+    const textarea = $("texto"), contador = $("contador"), mensaje = $("mensaje");
+    const boton = $("enviar"), avisoVentana = $("aviso-ventana");
+
+    let ultimaActividad = Date.now();
+    let pantallaFija = false;      // ¿está activa la "pantalla siempre encendida"?
+    let centinelaPantalla = null;
+    let fueraDeLaPagina = false;
+    let enviando = false;
+    let temporizadorOtraVentana = null;
+    let temporizadorVentana = null;
+
+    // ---------- Modo prueba: ?prueba al final de la dirección ----------
+    let panel = null, estadoPanel = null, registroPanel = null;
+    if (MODO_PRUEBA) {
+      panel = document.createElement("div");
+      panel.id = "panel-prueba";
+      panel.innerHTML = "<b>MODO PRUEBA</b> (no se envía nada)<div id='estado-prueba'></div><div id='registro-prueba'></div>";
+      document.body.appendChild(panel);
+      estadoPanel = panel.querySelector("#estado-prueba");
+      registroPanel = panel.querySelector("#registro-prueba");
+      document.body.style.paddingBottom = "42vh";
+    }
+    function registrar(texto) {
+      if (!MODO_PRUEBA) return;
+      const hora = new Date().toLocaleTimeString("es-ES");
+      const linea = document.createElement("div");
+      linea.textContent = hora + " · " + texto;
+      registroPanel.prepend(linea);
+    }
+    function actualizarEstadoPrueba() {
+      if (!MODO_PRUEBA) return;
+      const m = medidas();
+      estadoPanel.textContent =
+        "Dispositivo: " + (ES_TACTIL ? "táctil" : "ordenador") +
+        " · Pantalla siempre encendida: " + (pantallaFija ? "sí" : "no") +
+        " · Ventana: " + Math.round(m.anchoVentana) + "×" + Math.round(m.altoVentana) +
+        " de " + Math.round(m.anchoPantalla) + "×" + Math.round(m.altoPantalla) +
+        (ventanaCompleta() ? " (completa)" : " (REDUCIDA)");
+    }
+
+    // ---------- Mensajes y contador ----------
+    function mostrarMensaje(texto, tipo) {
+      mensaje.textContent = texto;
+      mensaje.className = "mensaje" + (tipo ? " " + tipo : "");
+    }
+    function contarPalabras(t) {
+      return t.trim().split(/\s+/).filter((p) => p.length > 0).length;
+    }
+    function actualizarContador() {
+      contador.innerText = contarPalabras(textarea.value) + " palabras";
+    }
+    // Todo cambio del texto hecho por la propia página pasa por aquí
+    let valorValido = "";
+    function ponerTexto(v) {
+      textarea.value = v;
+      valorValido = v;
+      actualizarContador();
+    }
+
+    // ---------- Actividad del alumno ----------
+    function marcarActividad() { ultimaActividad = Date.now(); }
+    ["keydown", "input", "pointerdown", "touchstart", "wheel"].forEach((ev) =>
+      window.addEventListener(ev, marcarActividad, { capture: true, passive: true })
+    );
+    let ultimoMovimiento = 0;
+    window.addEventListener("mousemove", () => {
+      const ahora = Date.now();
+      if (ahora - ultimoMovimiento > 500) { ultimoMovimiento = ahora; marcarActividad(); }
+    }, { passive: true });
+
+    function umbralInactividad() {
+      if (ES_TACTIL) return pantallaFija ? AJUSTES.INACTIVO_MOVIL_PANTALLA_FIJA_MS : AJUSTES.INACTIVO_MOVIL_MS;
+      return pantallaFija ? AJUSTES.INACTIVO_ORDENADOR_PANTALLA_FIJA_MS : AJUSTES.INACTIVO_ORDENADOR_MS;
+    }
+    function segundosInactivo() { return Math.round((Date.now() - ultimaActividad) / 1000); }
+    function salidaPorInactividad() { return Date.now() - ultimaActividad >= umbralInactividad(); }
+
+    // ---------- Borrador (solo para cuando el navegador descarta la pestaña) ----------
+    const CLAVE_BORRADOR = "procesador_borrador_v2";
+    function guardarBorrador() {
+      try {
+        sessionStorage.setItem(CLAVE_BORRADOR, JSON.stringify({
+          nombre: nombre.value, apellidos: apellidos.value, curso: curso.value, texto: textarea.value
+        }));
+      } catch (_) {}
+    }
+    function borrarBorrador() {
+      try { sessionStorage.removeItem(CLAVE_BORRADOR); } catch (_) {}
+    }
+    try { localStorage.removeItem("procesador_borrador"); } catch (_) {}
+    try {
+      // Si el móvil cerró la pestaña por falta de memoria mientras la pantalla
+      // estaba apagada, se recupera el texto. Al recargar o volver a abrir, no.
+      const b = document.wasDiscarded ? JSON.parse(sessionStorage.getItem(CLAVE_BORRADOR) || "null") : null;
+      if (b) {
+        nombre.value = b.nombre || ""; apellidos.value = b.apellidos || "";
+        curso.value = b.curso || ""; ponerTexto(b.texto || "");
+        mostrarMensaje("Se ha recuperado tu texto.", "aviso");
+      } else {
+        borrarBorrador();
+      }
+    } catch (_) {}
+
+    // ---------- Penalización ----------
+    function penalizar(motivo) {
+      const habiaTexto = textarea.value.trim().length > 0;
+      ponerTexto("");
+      borrarBorrador();
+      if (habiaTexto) mostrarMensaje("⚠️ " + motivo + ": el texto se ha borrado.", "error");
+      registrar("BORRADO · " + motivo);
+    }
+
+    // ---------- Salir de la página (pestaña, aplicación, pantalla apagada…) ----------
+    function alSalir(origen) {
+      if (fueraDeLaPagina) return;
+      fueraDeLaPagina = true;
+      clearTimeout(temporizadorOtraVentana);
+      if (salidaPorInactividad()) {
+        guardarBorrador();
+        registrar("Página oculta (" + origen + ") tras " + segundosInactivo() + " s sin actividad → se conserva (pantalla apagada/salvapantallas)");
+      } else {
+        penalizar("Has salido del procesador");
+      }
+    }
+    function alVolver() {
+      if (!fueraDeLaPagina) return;
+      fueraDeLaPagina = false;
+      marcarActividad();
+      pedirPantallaFija();
+      comprobarVentana(true);
+      registrar("Vuelve a la página");
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") alSalir("cambio de visibilidad");
+      else alVolver();
+    });
+    window.addEventListener("pagehide", (e) => {
+      alSalir("pagehide");
+      // Navegar a otra página (atrás/adelante): siempre se borra
+      if (e.persisted) penalizar("Has salido del procesador");
+    });
+    window.addEventListener("pageshow", (e) => { if (e.persisted) alVolver(); });
+
+    // ---------- Ordenador: usar otra ventana ----------
+    if (!ES_TACTIL) {
+      window.addEventListener("blur", (e) => {
+        if (e.target !== window || document.visibilityState === "hidden") return;
+        clearTimeout(temporizadorOtraVentana);
+        temporizadorOtraVentana = setTimeout(() => {
+          if (document.hasFocus() || document.visibilityState === "hidden" || fueraDeLaPagina) return;
+          if (salidaPorInactividad()) {
+            registrar("Ventana sin foco tras " + segundosInactivo() + " s sin actividad → se conserva (salvapantallas/bloqueo)");
+            return;
+          }
+          penalizar("Has usado otra ventana");
+        }, AJUSTES.GRACIA_OTRA_VENTANA_MS);
+      });
+      window.addEventListener("focus", (e) => {
+        if (e.target !== window) return;
+        clearTimeout(temporizadorOtraVentana);
+        marcarActividad();
+      });
+    }
+
+    // ---------- Ventana reducida o pantalla dividida ----------
+    function medidas() {
+      if (!ES_TACTIL) {
+        return {
+          anchoPantalla: screen.availWidth, altoPantalla: screen.availHeight,
+          anchoVentana: window.outerWidth || window.innerWidth,
+          altoVentana: window.outerHeight || window.innerHeight
+        };
+      }
+      const largo = Math.max(screen.width, screen.height);
+      const corto = Math.min(screen.width, screen.height);
+      let apaisado;
+      if (screen.orientation && screen.orientation.type) apaisado = screen.orientation.type.indexOf("landscape") === 0;
+      else if (typeof window.orientation === "number") apaisado = Math.abs(window.orientation) === 90;
+      else apaisado = window.innerWidth > window.innerHeight;
+      return {
+        anchoPantalla: apaisado ? largo : corto, altoPantalla: apaisado ? corto : largo,
+        anchoVentana: window.innerWidth, altoVentana: window.innerHeight
+      };
+    }
+    function ventanaCompleta() {
+      const m = medidas();
+      const okAncho = m.anchoVentana >= m.anchoPantalla * AJUSTES.ANCHO_MINIMO;
+      // En el móvil, con el teclado abierto no se mira la altura
+      const escribiendo = ES_TACTIL && document.activeElement &&
+        /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+      const altoMin = ES_TACTIL ? AJUSTES.ALTO_MINIMO_MOVIL : AJUSTES.ALTO_MINIMO_ORDENADOR;
+      const okAlto = escribiendo || m.altoVentana >= m.altoPantalla * altoMin;
+      return okAncho && okAlto;
+    }
+    function bloquearEscritura(bloquear) {
+      textarea.disabled = bloquear;
+      avisoVentana.style.display = bloquear ? "block" : "none";
+    }
+    function comprobarVentana(inmediato) {
+      actualizarEstadoPrueba();
+      if (document.visibilityState === "hidden") return;
+      if (ventanaCompleta()) {
+        clearTimeout(temporizadorVentana); temporizadorVentana = null;
+        bloquearEscritura(false);
+        return;
+      }
+      if (inmediato) {
+        if (textarea.value.trim()) penalizar("Has reducido la ventana o dividido la pantalla");
+        bloquearEscritura(true);
+        return;
+      }
+      if (temporizadorVentana) return;
+      temporizadorVentana = setTimeout(() => {
+        temporizadorVentana = null;
+        if (document.visibilityState === "hidden" || ventanaCompleta()) { comprobarVentana(true); return; }
+        if (textarea.value.trim()) penalizar("Has reducido la ventana o dividido la pantalla");
+        bloquearEscritura(true);
+        actualizarEstadoPrueba();
+      }, AJUSTES.GRACIA_VENTANA_REDUCIDA_MS);
+    }
+    window.addEventListener("resize", () => comprobarVentana(false));
+    if (screen.orientation) screen.orientation.addEventListener("change", () => comprobarVentana(false));
+    textarea.addEventListener("blur", () => setTimeout(() => comprobarVentana(false), 300));
+    comprobarVentana(true);
+
+    // ---------- Pantalla siempre encendida ----------
+    async function pedirPantallaFija() {
+      if (!("wakeLock" in navigator) || centinelaPantalla || document.visibilityState !== "visible") return;
+      try {
+        centinelaPantalla = await navigator.wakeLock.request("screen");
+        pantallaFija = true;
+        registrar("Pantalla siempre encendida: activada");
+        centinelaPantalla.addEventListener("release", () => {
+          centinelaPantalla = null;
+          // Al ocultarse la página se libera sola; solo cuenta si se pierde estando visible
+          if (document.visibilityState === "visible") pantallaFija = false;
+          actualizarEstadoPrueba();
+        });
+      } catch (err) {
+        pantallaFija = false;
+        registrar("No se pudo mantener la pantalla encendida (" + err.name + ")");
+      }
+      actualizarEstadoPrueba();
+    }
+    pedirPantallaFija();
+    window.addEventListener("pointerdown", pedirPantallaFija, { passive: true });
+    window.addEventListener("keydown", pedirPantallaFija);
+
+    // ---------- Escritura: bloqueo de autocorrector y sugerencias ----------
+    const TECLAS_MUERTAS = "´`¨^~'\"";    // ´ + e = é, ¨ + u = ü…
+    const SEPARADORES = /[\s.,;:!?¿¡…]/;
+    let seleccionAntes = { s: 0, e: 0 };
+    let temporizadorAvisoCorrector = null;
+    const avisoCorrector = $("aviso-corrector");
+
+    function guardarSeleccion() {
+      seleccionAntes = { s: textarea.selectionStart, e: textarea.selectionEnd };
+    }
+    ["keydown", "pointerup", "select", "focus"].forEach((ev) => textarea.addEventListener(ev, guardarSeleccion));
+
+    function unCaracter(s) { return Array.from(s).length === 1; }
+
+    // ¿El cambio es una tecla pulsada por el alumno?
+    function cambioPermitido(antes, ahora, cursor, sel) {
+      // Borrar (Retroceso, Supr, borrar una selección)
+      if (ahora.length < antes.length) {
+        const k = antes.length - ahora.length;
+        if (ahora === antes.slice(0, cursor) + antes.slice(cursor + k)) return true;
+      }
+      // Escribir un carácter encima de una selección
+      if (sel && sel.e > sel.s) {
+        const puesto = ahora.slice(sel.s, cursor);
+        if ((puesto === "" || unCaracter(puesto)) && ahora === antes.slice(0, sel.s) + puesto + antes.slice(sel.e)) return true;
+      }
+      // Escribir un carácter donde está el cursor
+      const k = ahora.length - antes.length;
+      if (k > 0 && cursor >= k) {
+        const puesto = ahora.slice(cursor - k, cursor);
+        if (unCaracter(puesto) && ahora === antes.slice(0, cursor - k) + puesto + antes.slice(cursor - k)) return true;
+      }
+      // Tecla muerta para tildes y diéresis (ordenador)
+      if (k === 0 && cursor >= 1 && TECLAS_MUERTAS.indexOf(antes.charAt(cursor - 1)) !== -1 &&
+          ahora === antes.slice(0, cursor - 1) + ahora.charAt(cursor - 1) + antes.slice(cursor)) return true;
+      return false;
+    }
+
+    function mostrarAvisoCorrector() {
+      avisoCorrector.textContent = "✋ No se permiten el autocorrector ni las sugerencias: escribe letra a letra.";
+      clearTimeout(temporizadorAvisoCorrector);
+      temporizadorAvisoCorrector = setTimeout(() => { avisoCorrector.textContent = ""; }, 4000);
+    }
+    function recortar(s) { return s.length > 40 ? "…" + s.slice(-40) : s; }
+
+    textarea.addEventListener("beforeinput", (e) => {
+      guardarSeleccion();
+      if (!AJUSTES.BLOQUEAR_AYUDAS_TECLADO) return;
+      const tipo = e.inputType || "";
+      const prohibido = [
+        "insertReplacementText",   // autocorrector y sugerencias de ortografía (iPhone, Mac…)
+        "insertFromPaste", "insertFromPasteAsQuotation", "insertFromDrop", "insertFromYank",
+        "insertTranspose", "insertLink"
+      ].indexOf(tipo) !== -1 || (tipo === "insertText" && e.data && Array.from(e.data).length > 1);
+      if (prohibido && e.cancelable) {
+        e.preventDefault();
+        mostrarAvisoCorrector();
+        registrar("Bloqueado antes de escribir (" + tipo + (e.data ? ": «" + e.data + "»" : "") + ")");
+      }
+    });
+
+    textarea.addEventListener("input", () => {
+      const antes = valorValido, ahora = textarea.value, cursor = textarea.selectionStart;
+      if (!AJUSTES.BLOQUEAR_AYUDAS_TECLADO || ahora === antes || cambioPermitido(antes, ahora, cursor, seleccionAntes)) {
+        valorValido = ahora;
+        actualizarContador();
+        return;
+      }
+      // Deshacer el cambio. Si el teclado corrigió una palabra al pulsar
+      // espacio o un signo, se conserva ese espacio o signo.
+      let p = 0;
+      while (p < antes.length && p < ahora.length && antes[p] === ahora[p]) p++;
+      let s = 0;
+      while (s < antes.length - p && s < ahora.length - p &&
+             antes[antes.length - 1 - s] === ahora[ahora.length - 1 - s]) s++;
+      const habiaReemplazo = antes.length - s > p;
+      let nuevo = antes, nuevoCursor = Math.min(seleccionAntes.s, antes.length);
+      const ultimo = cursor > 0 ? ahora.charAt(cursor - 1) : "";
+      if (habiaReemplazo && seleccionAntes.s === seleccionAntes.e && SEPARADORES.test(ultimo)) {
+        nuevo = antes.slice(0, nuevoCursor) + ultimo + antes.slice(nuevoCursor);
+        nuevoCursor += 1;
+      }
+      textarea.value = nuevo;
+      valorValido = nuevo;
+      try { textarea.setSelectionRange(nuevoCursor, nuevoCursor); } catch (_) {}
+      seleccionAntes = { s: nuevoCursor, e: nuevoCursor };
+      actualizarContador();
+      mostrarAvisoCorrector();
+      registrar("Corrección deshecha: «" + recortar(antes) + "» → «" + recortar(ahora) + "»");
+    });
+
+    textarea.addEventListener("keydown", function (e) {
+      if ((e.ctrlKey || e.metaKey) && ["v", "c", "x", "a"].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+      }
+    });
+
+    // ---------- Envío ----------
+    async function enviarTexto() {
+      if (enviando) return;
+      const datos = {
+        nombre: nombre.value.trim(), apellidos: apellidos.value.trim(),
+        curso: curso.value.trim(), texto: textarea.value.trim()
+      };
+      if (!datos.nombre || !datos.apellidos || !datos.curso || !datos.texto) {
+        // Sin alert(): las ventanas emergentes hacen perder el foco a la página
+        mostrarMensaje("Por favor, rellena todos los campos antes de enviar.", "error");
+        return;
+      }
+      if (MODO_PRUEBA) {
+        mostrarMensaje("Modo prueba: el texto no se envía.", "aviso");
+        return;
+      }
+
+      enviando = true;
+      boton.disabled = true;
+      boton.textContent = "Enviando…";
+      mostrarMensaje("Enviando… no cierres la página.", "aviso");
+
+      const params = new URLSearchParams(datos);
+      const control = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const espera = control ? setTimeout(() => control.abort(), AJUSTES.ESPERA_MAXIMA_ENVIO_MS) : null;
+
+      try {
+        // "no-cors": el navegador no lee la respuesta de Google, pero el envío
+        // solo da error si de verdad no llega (sin conexión, sin respuesta).
+        await fetch(AJUSTES.URL_SCRIPT, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: params.toString(),
+          signal: control ? control.signal : undefined
+        });
+        const palabras = contarPalabras(datos.texto);
+        const hora = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+        nombre.value = ""; apellidos.value = ""; curso.value = "";
+        ponerTexto("");
+        borrarBorrador();
+        mostrarMensaje("✅ Texto enviado correctamente a las " + hora + " (" + palabras + " palabras).", "");
+      } catch (_) {
+        mostrarMensaje("❌ No se ha podido enviar. Comprueba la conexión a internet y vuelve a pulsar «Enviar». Tu texto NO se ha borrado.", "error");
+      } finally {
+        if (espera) clearTimeout(espera);
+        enviando = false;
+        boton.disabled = false;
+        boton.textContent = "Enviar";
+      }
+    }
+    boton.addEventListener("click", enviarTexto);
+    window.enviarTexto = enviarTexto;
+  })();
+  </script>
+</body>
+</html>
